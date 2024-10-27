@@ -1,0 +1,11 @@
+{
+  "name": "auth_back",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Sultan",
+  "license": "ISC",
+  "description": ""
+}

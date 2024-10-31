@@ -3,13 +3,13 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const http = require('http');
-const socketIo = require('socket.io');
 const mysql = require('mysql');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 const app = express();
 const dotenv = require('dotenv');
-
+const sginupMiddleware = require(.middleware/login.js);
+const loginMiddleware = require(.middleware/login.js);
 
 dotenv.config();
 const jwtSecret = process.env.JWT_SECRET;
@@ -32,19 +32,8 @@ const io = socketIo(server, {
 app.use(express.json());
 const saltRounds = 10;
 
-
-app.post('/api/signup', (req, res) => {
-  const { email, userName, password } = req.body;
-
-  if (!email || !userName || !password) {
-    return res.status(400).json({ success: false, message: 'All fields are required' });
-  }
-
-  bcrypt.hash(password, saltRounds, (err, hashedPassword) =>{
-    if(err){
-      console.error('Error When Hasheing', err);
-      return res.status(500).json({success:false, message: 'Sign-in failed' });
-    }
+app.post('/api/signup',sginupMiddleware (req, res) => {
+  const { email, userName, hashedPassword } = req.body;
 
     const query = 'INSERT INTO user (email, userName, password) VALUES (?, ?, ?)';
   db.query(query, [email, userName, hashedPassword], (err, result) => {
@@ -54,43 +43,22 @@ app.post('/api/signup', (req, res) => {
       }
       res.json({ success: true, message: 'Sign-in successful' });
     })
-  });
 });
 
 
 
 
-app.post('/api/login', (req, res)=>{
-  const { email, password} = req.body;
+app.post('/api/login',loginMiddleware (req, res)=>{
+  const user = req.user
 
-  const queryLogin = 'SELECT * FROM user where email = ?';
-  db.query(queryLogin, [email], (err, results) =>{
-    if(err){
-      console.error('ERROR WHEN RETRIVE PASS', err);
-      return res.status(500).json({success:false, message: 'Login failed' });
-    }
-    if(results.length === 0 ){
-      return res.status(400).json({ success: false, message : 'user not found' });
-    }
+  const token = jwt.sign({ id: user.id, email: user.email},
+    jwtSecret,
+    { expiresIn: '7h' })
 
-    const user = results[0];
-    const hashedPassword = results[0].password;
+  res.json({ success: true, token });
 
-    bcrypt.compare(password, hashedPassword, (err, isMatch) => {
-            if (err) {
-                console.error('Error comparing passwords:', err);
-                return res.status(500).json({ success: false, message: 'Login failed' });
-            }
+});
 
-            if (isMatch) {
-                const token = jwt.sign({ id: user.id, email: user.email, password: user.password }, jwtSecret, { expiresIn: '7h' });
-                res.json({ success: true, token });
-            } else {
-                res.status(400).json({ success: false, message: 'Incorrect password' });
-            }
-    });
-  })
-})
 
 
 server.listen(3000, () => {
